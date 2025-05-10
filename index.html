@@ -8,59 +8,90 @@
     <style>
         body {
             font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif;
-            overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
+            overscroll-behavior: none;
+            background-color: #f0e6d2; /* Light parchment/beige background for the page */
+        }
+        #game-board {
+            background: linear-gradient(135deg, #b08d57 25%, #c69c6d 25%, #c69c6d 50%, #b08d57 50%, #b08d57 75%, #c69c6d 75%, #c69c6d 100%);
+            background-size: 50px 50px; /* Wood grain pattern size */
+            border: 6px solid #654321; /* Darker wood border */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3), inset 0 0 15px rgba(0,0,0,0.25);
+            padding: 10px; /* Adjust padding for the board */
         }
         .letter-draggable {
-            touch-action: none; /* Recommended for draggable elements to prevent scrolling */
+            touch-action: none;
             cursor: grab;
-            user-select: none; /* Prevent text selection during drag */
+            user-select: none;
+            transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
         }
         .letter-draggable:active {
             cursor: grabbing;
+            transform: scale(1.08) translateY(-3px); /* Lift effect */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
         }
         .drop-zone {
-            border: 3px dashed #cbd5e1; /* slate-300 */
+            background-color: rgba(0,0,0,0.15); /* Darker indent color for wood */
+            border: 1px solid #8a6e4a; /* Indent border, less prominent */
+            box-shadow: inset 3px 3px 6px rgba(0,0,0,0.4); /* Deeper inset shadow */
             transition: background-color 0.2s ease-in-out;
+            /* Sizes for drop-zones are set by Tailwind classes in JS */
         }
         .drop-zone.drag-over {
-            background-color: #e0f2fe; /* sky-100 */
+            background-color: rgba(255,255,255,0.15); /* Brighter highlight on wood */
         }
+        /* Letter block style */
         .letter-svg {
-            width: 80px;
-            height: 80px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 48px;
             font-weight: bold;
-            border-radius: 0.75rem; /* rounded-xl */
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+            border-radius: 0.375rem; /* Tailwind's rounded-md */
+            box-shadow: 
+                1px 1px 0px #fff8, /* Top-left highlight */
+                -1px -1px 0px #0003, /* Bottom-right shadow for depth */
+                3px 3px 5px rgba(0,0,0,0.3), /* Main shadow for "thickness" */
+                inset 0 0 2px rgba(255,255,255,0.2); /* Slight inner bevel */
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
+            /* Sizes and colors are set by Tailwind classes in JS */
         }
-        .drop-zone .letter-svg { /* Style for the shadow/placeholder letter */
-            opacity: 0.3;
+        .drop-zone .letter-svg { /* Style for the placeholder letter in drop zone */
+            opacity: 0.35;
+            box-shadow: inset 2px 2px 4px rgba(0,0,0,0.5);
+            text-shadow: none;
+            /* Color is bg-yellow-800 or similar from JS */
         }
-        .matched {
-            transform: scale(1.1);
-            transition: transform 0.2s ease-out;
+        .matched { /* Style for letter when correctly placed */
+            transform: scale(1.0); 
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.4); /* Settled into the board */
+            cursor: default !important;
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
         }
         .letter-tray-item {
-            min-width: 90px; /* Ensure touch target is large enough */
-            min-height: 90px;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 3px; /* Small padding around tray items */
+        }
+        #letter-tray {
+            background: linear-gradient(135deg, #a17d48 25%, #b38f5a 25%, #b38f5a 50%, #a17d48 50%, #a17d48 75%, #b38f5a 75%, #b38f5a 100%);
+            background-size: 40px 40px;
+            border-top: 4px solid #654321;
+            box-shadow: 0 -5px 10px rgba(0,0,0,0.25);
+            /* Width and padding adjusted via Tailwind */
         }
     </style>
 </head>
-<body class="bg-sky-100 flex flex-col items-center justify-center min-h-screen p-4">
+<body class="flex flex-col items-center justify-start min-h-screen p-2 sm:p-4 pt-6 sm:pt-8">
 
-    <h1 class="text-4xl font-bold text-pink-500 mb-8">Alphabet Puzzle Game</h1>
+    <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-orange-800 mb-4 sm:mb-6" style="text-shadow: 1px 1px 0px #d2b48c, 2px 2px 0px #8b4513;">Alphabet Wood Puzzle</h1>
 
-    <div id="drop-zones-container" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
-        <!-- Drop zones will be injected here by JS -->
+    <div id="game-board" class="p-2 sm:p-3 rounded-lg shadow-xl mb-6 sm:mb-8 w-full max-w-xs xs:max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl"> 
+        <div id="drop-zones-container" class="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-7 gap-1 sm:gap-2">
+            <!-- Drop zones will be injected here by JS -->
+        </div>
     </div>
 
-    <div id="letter-tray" class="bg-white p-4 rounded-xl shadow-lg flex space-x-4 overflow-x-auto">
+    <div id="letter-tray" class="p-2 sm:p-3 rounded-lg shadow-lg flex space-x-1 sm:space-x-2 overflow-x-auto w-full max-w-xs xs:max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl">
         <!-- Draggable letters will be injected here by JS -->
     </div>
 
@@ -82,23 +113,24 @@
             const dropZonesContainer = document.getElementById('drop-zones-container');
             const letterTray = document.getElementById('letter-tray');
             
-            let letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+            let letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
             let draggedLetterElement = null;
             let originalParent = null;
 
             // Audio placeholders
             const successSound = { play: () => console.log('Success sound') };
             const tryAgainSound = { play: () => console.log('Try again sound') };
-            const letterSounds = {
-                'A': { play: () => console.log('Playing A') }, 'B': { play: () => console.log('Playing B') },
-                'C': { play: () => console.log('Playing C') }, 'D': { play: () => console.log('Playing D') },
-                'E': { play: () => console.log('Playing E') }, 'F': { play: () => console.log('Playing F') },
-                'G': { play: () => console.log('Playing G') }, 'H': { play: () => console.log('Playing H') },
-            };
+            const letterSounds = {};
+            letters.forEach(l => letterSounds[l] = { play: () => console.log(`Playing ${l}`) });
             
             const letterColors = [
-                'bg-red-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500',
-                'bg-pink-500', 'bg-indigo-500', 'bg-teal-500', 'bg-orange-500'
+                'bg-red-500', 'bg-green-500', 'bg-yellow-400', 'bg-purple-500', // Adjusted yellow for better visibility
+                'bg-pink-500', 'bg-indigo-500', 'bg-teal-500', 'bg-orange-500',
+                'bg-sky-500', 'bg-lime-500', 'bg-rose-500', 'bg-cyan-500',
+                'bg-emerald-500', 'bg-fuchsia-500', 'bg-amber-500', 'bg-violet-500',
+                'bg-red-400', 'bg-green-400', 'bg-yellow-300', 'bg-purple-400',
+                'bg-pink-400', 'bg-indigo-400', 'bg-teal-400', 'bg-orange-400',
+                'bg-sky-400', 'bg-lime-400' // Enough for 26 letters
             ];
 
             function initializeGame() {
@@ -114,10 +146,14 @@
                 // Initialize Drop Zones
                 letters.forEach(letter => {
                     const zone = document.createElement('div');
-                    zone.classList.add('drop-zone', 'w-24', 'h-24', 'rounded-xl', 'flex', 'items-center', 'justify-center');
+                    // Sizes are now more reliant on Tailwind classes set here and in createLetterElement
+                    zone.classList.add('drop-zone', 'rounded-md', 'flex', 'items-center', 'justify-center');
+                    // Apply same dynamic sizing as letter elements for consistency
+                    const sizeClasses = ['w-14', 'h-14', 'sm:w-[68px]', 'sm:h-[68px]', 'md:w-[72px]', 'md:h-[72px]'];
+                    zone.classList.add(...sizeClasses);
                     zone.dataset.letter = letter;
 
-                    const placeholderLetter = createLetterElement(letter, false, 'bg-gray-300');
+                    const placeholderLetter = createLetterElement(letter, false, 'bg-yellow-900'); // Darker placeholder for wood
                     placeholderLetter.classList.remove('cursor-pointer');
                     placeholderLetter.style.opacity = '0.3';
                     zone.appendChild(placeholderLetter);
@@ -154,9 +190,12 @@
             function createLetterElement(letter, isDraggable = true, color = 'bg-blue-500') {
                 const el = document.createElement('div');
                 el.textContent = letter;
-                el.classList.add('letter-svg', color, 'text-white', 'cursor-pointer');
+                // Base class 'letter-svg' is styled in CSS. JS adds dynamic size and color.
+                const sizeClasses = ['w-14', 'h-14', 'sm:w-[68px]', 'sm:h-[68px]', 'md:w-[72px]', 'md:h-[72px]', 'text-2xl', 'sm:text-3xl', 'md:text-4xl']; 
+                el.classList.add('letter-svg', ...sizeClasses, color, 'text-white');
+                
                 if (isDraggable) {
-                    el.classList.add('letter-draggable');
+                    el.classList.add('letter-draggable', 'cursor-pointer');
                     el.draggable = true;
                     el.dataset.letter = letter;
                     el.addEventListener('click', () => {
