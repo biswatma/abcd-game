@@ -117,12 +117,32 @@
             let draggedLetterElement = null;
             let originalParent = null;
 
-            // Audio placeholders
-            const successSound = { play: () => console.log('Success sound') };
-            const tryAgainSound = { play: () => console.log('Try again sound') };
-            const letterSounds = {};
-            letters.forEach(l => letterSounds[l] = { play: () => console.log(`Playing ${l}`) });
+            // Audio Elements
+            const audioSuccess = document.getElementById('audio-success');
+            const audioFailure = document.getElementById('audio-failure');
+            const audioDrop = document.getElementById('audio-drop');
+            const audioDrag = document.getElementById('audio-drag');
+            // Function to play letter sound by ID
+            function playLetterSound(letter) {
+                const letterAudio = document.getElementById(`audio-${letter}`);
+                if (letterAudio && letterAudio.src && letterAudio.src !== location.href + "#") { // Check if src is set and not just '#'
+                    letterAudio.currentTime = 0; // Rewind to start
+                    letterAudio.play().catch(e => console.warn("Audio play failed:", e));
+                } else {
+                    console.log(`Playing ${letter} (audio element or src not found/set for ${letter})`);
+                }
+            }
             
+            // Helper function to play general sounds
+            function playSound(audioElement) {
+                if (audioElement && audioElement.src && audioElement.src !== location.href + "#") {
+                    audioElement.currentTime = 0;
+                    audioElement.play().catch(e => console.warn("Audio play failed:", e));
+                } else {
+                    console.log(`Sound not played (audio element or src not found/set for ${audioElement ? audioElement.id : 'unknown'})`);
+                }
+            }
+
             const letterColors = [
                 'bg-red-500', 'bg-green-500', 'bg-yellow-400', 'bg-purple-500', // Adjusted yellow for better visibility
                 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500', 'bg-orange-500',
@@ -199,7 +219,7 @@
                     el.draggable = true;
                     el.dataset.letter = letter;
                     el.addEventListener('click', () => {
-                        if (letterSounds[letter]) letterSounds[letter].play();
+                        playLetterSound(letter);
                     });
                 }
                 return el;
@@ -208,10 +228,11 @@
             function handleDragStart(e) {
                 draggedLetterElement = e.target;
                 originalParent = e.target.parentElement;
+                playSound(audioDrag); // Play drag sound
                 setTimeout(() => {
                     e.target.style.opacity = '0.5';
                 }, 0);
-                if (letterSounds[e.target.dataset.letter]) letterSounds[e.target.dataset.letter].play();
+                playLetterSound(e.target.dataset.letter); // Play letter pronunciation on drag
             }
 
             function handleDragEnd(e) {
@@ -244,7 +265,8 @@
 
                 if (draggedLetterElement && dropZone.dataset.letter === draggedLetterElement.dataset.letter) {
                     // Correct match
-                    successSound.play();
+                    playSound(audioDrop);
+                    playSound(audioSuccess);
                     dropZone.innerHTML = ''; // Clear placeholder
                     dropZone.appendChild(draggedLetterElement);
                     draggedLetterElement.classList.remove('letter-draggable');
@@ -261,13 +283,14 @@
                     
                     // Check for game completion
                     if (document.querySelectorAll('.matched').length === letters.length) {
+                        // Potentially play a different, bigger success sound here for game completion
                         setTimeout(showCompletionMessage, 300);
                     }
                     draggedLetterElement = null; // Clear after successful drop
 
                 } else if (draggedLetterElement) {
                     // Incorrect match
-                    tryAgainSound.play();
+                    playSound(audioFailure);
                     // Return to original spot in tray
                     if (originalParent) {
                          originalParent.appendChild(draggedLetterElement);
@@ -289,9 +312,9 @@
                     originalParent = currentDragElement.parentElement; // Store original parent for return
 
                     // Play sound on touch start (equivalent to drag start)
-                    if (letterSounds[currentDragElement.dataset.letter]) {
-                        letterSounds[currentDragElement.dataset.letter].play();
-                    }
+                    playSound(audioDrag);
+                    playLetterSound(currentDragElement.dataset.letter);
+                    
 
                     // Create a clone for dragging
                     clone = currentDragElement.cloneNode(true);
@@ -346,7 +369,8 @@
 
                     if (finalDropZone && finalDropZone.dataset.letter === currentDragElement.dataset.letter) {
                         // Correct match
-                        successSound.play();
+                        playSound(audioDrop);
+                        playSound(audioSuccess);
                         finalDropZone.innerHTML = ''; // Clear placeholder
                         finalDropZone.appendChild(currentDragElement);
                         currentDragElement.classList.remove('letter-draggable');
@@ -360,11 +384,12 @@
                         }, 200);
 
                         if (document.querySelectorAll('.matched').length === letters.length) {
+                            // Potentially play a different, bigger success sound here for game completion
                            setTimeout(showCompletionMessage, 300);
                         }
                     } else {
                         // Incorrect match or dropped outside
-                        tryAgainSound.play();
+                        playSound(audioFailure);
                         if (originalParent) { // Return to original parent in tray
                             originalParent.appendChild(currentDragElement);
                         }
@@ -378,6 +403,17 @@
             initializeGame(); // Start the game
         });
     </script>
+
+    <!-- Audio Elements - Replace # with actual sound file URLs -->
+    <audio id="audio-success" src="#"></audio> 
+    <audio id="audio-failure" src="#"></audio>
+    <audio id="audio-drop" src="#"></audio> 
+    <audio id="audio-drag" src="#"></audio> <!-- Optional: for drag start -->
+
+    <!-- Example for letter A - you'll need to add one for each letter (e.g., audio-A, audio-B) -->
+    <audio id="audio-A" src="#"></audio>
+    <!-- Add more for B-Z: <audio id="audio-B" src="#"></audio> ... <audio id="audio-Z" src="#"></audio> -->
+
 </body>
 </html>
 </write_to_file>
