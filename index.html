@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alphabet Puzzle Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif;
+            overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
+        }
+        .letter-draggable {
+            touch-action: none; /* Recommended for draggable elements to prevent scrolling */
+            cursor: grab;
+            user-select: none; /* Prevent text selection during drag */
+        }
+        .letter-draggable:active {
+            cursor: grabbing;
+        }
+        .drop-zone {
+            border: 3px dashed #cbd5e1; /* slate-300 */
+            transition: background-color 0.2s ease-in-out;
+        }
+        .drop-zone.drag-over {
+            background-color: #e0f2fe; /* sky-100 */
+        }
+        .letter-svg {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+        }
+        .drop-zone .letter-svg { /* Style for the shadow/placeholder letter */
+            opacity: 0.3;
+        }
+        .matched {
+            transform: scale(1.1);
+            transition: transform 0.2s ease-out;
+        }
+        .letter-tray-item {
+            min-width: 90px; /* Ensure touch target is large enough */
+            min-height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="bg-sky-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <h1 class="text-4xl font-bold text-pink-500 mb-8">Alphabet Puzzle Game</h1>
+
+    <div id="drop-zones-container" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
+        <!-- Drop zones will be injected here by JS -->
+    </div>
+
+    <div id="letter-tray" class="bg-white p-4 rounded-xl shadow-lg flex space-x-4 overflow-x-auto">
+        <!-- Draggable letters will be injected here by JS -->
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const letters = ['A', 'B', 'C', 'D'];
+            const dropZonesContainer = document.getElementById('drop-zones-container');
+            const letterTray = document.getElementById('letter-tray');
+            let draggedLetterElement = null;
+            let originalParent = null;
+
+            // Audio placeholders (replace with actual audio later)
+            const successSound = { play: () => console.log('Success sound') }; // new Audio('sounds/success.mp3');
+            const tryAgainSound = { play: () => console.log('Try again sound') }; // new Audio('sounds/try-again.mp3');
+            const letterSounds = {
+                'A': { play: () => console.log('Playing A') }, // new Audio('sounds/A.mp3'),
+                'B': { play: () => console.log('Playing B') }, // new Audio('sounds/B.mp3'),
+                'C': { play: () => console.log('Playing C') }, // new Audio('sounds/C.mp3'),
+                'D': { play: () => console.log('Playing D') }, // new Audio('sounds/D.mp3'),
+            };
+
+            // Helper to create letter SVG-like element
+            function createLetterElement(letter, isDraggable = true, color = 'bg-blue-500') {
+                const el = document.createElement('div');
+                el.textContent = letter;
+                el.classList.add('letter-svg', color, 'text-white', 'cursor-pointer');
+                if (isDraggable) {
+                    el.classList.add('letter-draggable');
+                    el.draggable = true;
+                    el.dataset.letter = letter;
+                    el.addEventListener('click', () => {
+                        if (letterSounds[letter]) letterSounds[letter].play();
+                    });
+                }
+                return el;
+            }
+
+            // Initialize Drop Zones
+            letters.forEach(letter => {
+                const zone = document.createElement('div');
+                zone.classList.add('drop-zone', 'w-24', 'h-24', 'rounded-xl', 'flex', 'items-center', 'justify-center');
+                zone.dataset.letter = letter;
+
+                const placeholderLetter = createLetterElement(letter, false, 'bg-gray-300');
+                placeholderLetter.classList.remove('cursor-pointer'); // Not clickable
+                placeholderLetter.style.opacity = '0.3'; // Make it look like a shadow
+                zone.appendChild(placeholderLetter);
+
+                dropZonesContainer.appendChild(zone);
+
+                zone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    zone.classList.add('drag-over');
+                });
+                zone.addEventListener('dragleave', () => {
+                    zone.classList.remove('drag-over');
+                });
+                zone.addEventListener('drop', handleDrop);
+            });
+
+            // Initialize Draggable Letters in Tray (shuffled)
+            const shuffledLetters = [...letters].sort(() => Math.random() - 0.5);
+            const letterColors = ['bg-red-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500'];
+
+            shuffledLetters.forEach((letter, index) => {
+                const trayItem = document.createElement('div');
+                trayItem.classList.add('letter-tray-item'); // Wrapper for centering and touch target
+                const letterEl = createLetterElement(letter, true, letterColors[index % letterColors.length]);
+                
+                letterEl.addEventListener('dragstart', (e) => {
+                    draggedLetterElement = e.target;
+                    originalParent = e.target.parentElement; // Remember original parent (tray item)
+                    setTimeout(() => {
+                        e.target.style.opacity = '0.5';
+                    }, 0);
+                    if (letterSounds[letter]) letterSounds[letter].play(); // Play sound on drag start
+                });
+
+                letterEl.addEventListener('dragend', (e) => {
+                    setTimeout(() => {
+                        e.target.style.opacity = '1';
+                        if (draggedLetterElement && !draggedLetterElement.classList.contains('matched')) {
+                            // If not matched, ensure it's returned to tray if it was moved out
+                            if (originalParent && !originalParent.contains(draggedLetterElement)) {
+                                originalParent.appendChild(draggedLetterElement);
+                            }
+                        }
+                        draggedLetterElement = null;
+                        originalParent = null;
+                    }, 0);
+                });
+                trayItem.appendChild(letterEl);
+                letterTray.appendChild(trayItem);
+            });
+
+            function handleDrop(e) {
+                e.preventDefault();
+                const dropZone = e.currentTarget;
+                dropZone.classList.remove('drag-over');
+
+                if (draggedLetterElement && dropZone.dataset.letter === draggedLetterElement.dataset.letter) {
+                    // Correct match
+                    successSound.play();
+                    dropZone.innerHTML = ''; // Clear placeholder
+                    dropZone.appendChild(draggedLetterElement);
+                    draggedLetterElement.classList.remove('letter-draggable');
+                    draggedLetterElement.draggable = false;
+                    draggedLetterElement.classList.add('matched');
+                    draggedLetterElement.style.cursor = 'default';
+                    draggedLetterElement.style.opacity = '1'; // Ensure full opacity
+
+                    // Animation
+                    draggedLetterElement.style.transform = 'scale(1.2)';
+                    setTimeout(() => {
+                        draggedLetterElement.style.transform = 'scale(1)';
+                    }, 200);
+                    
+                    // Check for game completion
+                    if (document.querySelectorAll('.matched').length === letters.length) {
+                        setTimeout(() => alert('Congratulations! You matched all letters!'), 300);
+                    }
+                    draggedLetterElement = null; // Clear after successful drop
+
+                } else if (draggedLetterElement) {
+                    // Incorrect match
+                    tryAgainSound.play();
+                    // Return to original spot in tray
+                    if (originalParent) {
+                         originalParent.appendChild(draggedLetterElement);
+                    }
+                    draggedLetterElement.style.opacity = '1'; // Reset opacity
+                    draggedLetterElement = null; // Clear after incorrect drop
+                }
+            }
+
+            // Touch support (basic implementation)
+            let touchStartX, touchStartY;
+            let currentDragElement = null;
+            let clone = null;
+            let initialX, initialY; // Store initial touch position relative to element
+
+            document.addEventListener('touchstart', (e) => {
+                if (e.target.classList.contains('letter-draggable') && !e.target.classList.contains('matched')) {
+                    currentDragElement = e.target;
+                    originalParent = currentDragElement.parentElement; // Store original parent for return
+
+                    // Play sound on touch start (equivalent to drag start)
+                    if (letterSounds[currentDragElement.dataset.letter]) {
+                        letterSounds[currentDragElement.dataset.letter].play();
+                    }
+
+                    // Create a clone for dragging
+                    clone = currentDragElement.cloneNode(true);
+                    clone.style.position = 'absolute';
+                    clone.style.zIndex = '1000';
+                    clone.style.pointerEvents = 'none'; // So it doesn't interfere with touchmove over drop zones
+                    document.body.appendChild(clone);
+                    
+                    const rect = currentDragElement.getBoundingClientRect();
+                    initialX = e.touches[0].clientX - rect.left;
+                    initialY = e.touches[0].clientY - rect.top;
+
+                    clone.style.left = `${e.touches[0].clientX - initialX}px`;
+                    clone.style.top = `${e.touches[0].clientY - initialY}px`;
+                    
+                    currentDragElement.style.opacity = '0.5'; // Make original semi-transparent
+                    
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                    e.preventDefault(); // Prevent scrolling
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchmove', (e) => {
+                if (currentDragElement && clone) {
+                    clone.style.left = `${e.touches[0].clientX - initialX}px`;
+                    clone.style.top = `${e.touches[0].clientY - initialY}px`;
+                    
+                    // Highlight drop zone
+                    clone.style.display = 'none'; // Temporarily hide clone to find element underneath
+                    let elementBelow = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+                    clone.style.display = ''; // Show clone again
+
+                    document.querySelectorAll('.drop-zone').forEach(dz => dz.classList.remove('drag-over'));
+                    if (elementBelow && elementBelow.closest('.drop-zone')) {
+                        elementBelow.closest('.drop-zone').classList.add('drag-over');
+                    }
+                    e.preventDefault(); // Prevent scrolling
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchend', (e) => {
+                if (currentDragElement && clone) {
+                    clone.style.display = 'none'; // Hide clone to find element underneath
+                    let dropTarget = document.elementFromPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+                    document.body.removeChild(clone); // Remove clone
+                    clone = null;
+
+                    document.querySelectorAll('.drop-zone').forEach(dz => dz.classList.remove('drag-over'));
+
+                    const finalDropZone = dropTarget ? dropTarget.closest('.drop-zone') : null;
+
+                    if (finalDropZone && finalDropZone.dataset.letter === currentDragElement.dataset.letter) {
+                        // Correct match
+                        successSound.play();
+                        finalDropZone.innerHTML = ''; // Clear placeholder
+                        finalDropZone.appendChild(currentDragElement);
+                        currentDragElement.classList.remove('letter-draggable');
+                        currentDragElement.classList.add('matched');
+                        currentDragElement.style.cursor = 'default';
+                        currentDragElement.style.opacity = '1';
+
+                        currentDragElement.style.transform = 'scale(1.2)';
+                        setTimeout(() => {
+                            currentDragElement.style.transform = 'scale(1)';
+                        }, 200);
+
+                        if (document.querySelectorAll('.matched').length === letters.length) {
+                           setTimeout(() => alert('Congratulations! You matched all letters!'), 300);
+                        }
+                    } else {
+                        // Incorrect match or dropped outside
+                        tryAgainSound.play();
+                        if (originalParent) { // Return to original parent in tray
+                            originalParent.appendChild(currentDragElement);
+                        }
+                        currentDragElement.style.opacity = '1';
+                    }
+                    currentDragElement = null;
+                    originalParent = null;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+</write_to_file>
